@@ -253,11 +253,10 @@ body[data-action="getup"] .card { border-color: rgba(255, 77, 154, 0.45); }
   color: rgba(190, 235, 255, 0.72);
 }
 .mark {
-  width: 14px;
+  width: 34px;
   height: 34px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--pink), var(--cyan));
-  box-shadow: 0 0 16px rgba(80, 220, 255, 0.7);
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(150, 70, 255, 0.55));
 }
 
 .status {
@@ -539,7 +538,7 @@ body[data-action="getup"] .card { border-color: rgba(255, 77, 154, 0.45); }
   .brand { gap: 8px; }
   .brand em { display: none; }
   .brand strong { font-size: 16px; letter-spacing: 0.04em; }
-  .mark { width: 10px; height: 26px; }
+  .mark { width: 28px; height: 28px; }
   .status {
     flex: 0 1 auto;
     min-width: 0;
