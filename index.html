@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>云小闲 · 手势互动</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="city" aria-hidden="true"></canvas>
+    <div class="bokeh" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="pool" aria-hidden="true"></div>
+    <svg id="links" class="links" aria-hidden="true"></svg>
+    <div id="cards" class="cards"></div>
+
+    <canvas id="stage"></canvas>
+    <p id="loading">正在装载云小闲…</p>
+
+    <header class="topbar">
+      <div class="brand" id="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <strong>云小闲</strong>
+          <em>GESTURE STUDIO</em>
+        </div>
+      </div>
+      <div class="status">
+        <span id="status-dot" class="dot"></span>
+        <span id="status-text">自信走秀</span>
+        <span class="meter" aria-hidden="true"><i id="meter"></i></span>
+      </div>
+      <p id="hint"></p>
+      <button id="rules-btn" class="icon-btn" type="button" aria-label="手势规则" aria-expanded="false" aria-controls="rules-panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" />
+          <path d="M12 7.2v6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <circle cx="12" cy="16.7" r="1.05" fill="currentColor" />
+        </svg>
+      </button>
+      <button id="camera-btn" class="icon-btn" type="button" aria-label="开启摄像头" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.2 8.2h3.1L8.8 6.2h6.4l1.5 2h3.1a1 1 0 0 1 1 1v9.2a1 1 0 0 1-1 1H4.2a1 1 0 0 1-1-1V9.2a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <circle cx="12" cy="13.1" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      </button>
+    </header>
+
+    <section id="rules-panel" class="rules" hidden>
+      <h2>手势规则</h2>
+      <p>同一时间只认一个手势。动作类手势稳住大约半秒才会切换。</p>
+      <ul>
+        <li><span>默认</span><b>自信走秀</b></li>
+        <li><span>握拳</span><b>拳击</b></li>
+        <li><span>比耶</span><b>江南舞</b></li>
+        <li><span>食指 + 拇指手枪</span><b>倒地</b></li>
+        <li><span>手掌拍下</span><b>奔跑</b></li>
+        <li><span>掌心向上勾手指</span><b>起身</b></li>
+        <li><span>拇指、食指、小指伸出</span><b>跳舞</b></li>
+        <li><span>掌心朝下，手指交替弹奏</span><b>摇摆舞步</b></li>
+        <li><span>张开手掌，靠近或远离</span><b>放大或缩小</b></li>
+        <li><span>食指画圈</span><b>跟随转动，停止后回正</b></li>
+      </ul>
+    </section>
+
+    <div id="pip" class="pip" hidden>
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <span class="pip-tag">摄像头</span>
+    </div>
+
+    <div class="now">
+      <b id="now-title">自信走秀</b>
+      <span id="now-meta">缩放 1.00 · 正面</span>
+    </div>
+
+    <p id="toast" class="toast" hidden></p>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
