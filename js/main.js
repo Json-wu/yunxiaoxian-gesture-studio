@@ -108,6 +108,11 @@ cameraBtn.addEventListener("click", () => {
   else startLive();
 });
 
+document.querySelector("#pip-close").addEventListener("click", (event) => {
+  event.stopPropagation();
+  stopLive();
+});
+
 rulesBtn.addEventListener("click", () => {
   const open = rulesPanel.hasAttribute("hidden");
   if (open) rulesPanel.removeAttribute("hidden");
@@ -177,7 +182,7 @@ function mountPipDrag() {
   let drag = null;
 
   pip.addEventListener("pointerdown", (event) => {
-    if (pip.hidden || event.button > 0) return;
+    if (pip.hidden || event.button > 0 || event.target.closest("#pip-close")) return;
     const rect = pip.getBoundingClientRect();
     drag = {
       id: event.pointerId,

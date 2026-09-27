@@ -83,6 +83,7 @@ const cases = [
   ["peace", ["peace"], hand({ pose: ["index", "middle"] })],
   ["gun", ["gun"], hand({ pose: ["thumb", "index"] })],
   ["ily", ["ily"], hand({ pose: ["thumb", "index", "pinky"] })],
+  ["middle", ["middle"], hand({ pose: ["middle"] })],
 ];
 
 let failed = 0;
@@ -91,6 +92,65 @@ for (const [name, expected, lm] of cases) {
   const sample = push(tracker, lm, 10);
   const ok = expected.includes(sample.label) && expected.includes(sample.raw);
   console.log(name, "raw", sample.raw, "label", sample.label, ok ? "OK" : "FAIL");
+  if (!ok) failed += 1;
+}
+
+function okHand() {
+  const lm = hand({ pose: ["middle", "ring", "pinky"] });
+  lm[4] = { x: lm[8].x + 0.012, y: lm[8].y, z: 0 };
+  return lm;
+}
+
+{
+  const tracker = createTracker();
+  const sample = push(tracker, okHand(), 10);
+  const ok = sample.raw === "ok" && sample.label === "ok";
+  console.log("ok", "raw", sample.raw, "label", sample.label, ok ? "OK" : "FAIL");
+  if (!ok) failed += 1;
+}
+
+function towardCamera(openNames) {
+  const wrist = { x: 0.5, y: 0.58, z: 0 };
+  const lm = Array.from({ length: 21 }, () => ({ ...wrist }));
+  const names = ["index", "middle", "ring", "pinky"];
+  const ids = {
+    index: [5, 6, 7, 8],
+    middle: [9, 10, 11, 12],
+    ring: [13, 14, 15, 16],
+    pinky: [17, 18, 19, 20],
+  };
+  const spread = { index: -0.03, middle: -0.01, ring: 0.01, pinky: 0.03 };
+  const open = new Set(openNames);
+  for (const name of names) {
+    const [mcp, pip, dip, tip] = ids[name];
+    const sx = spread[name];
+    lm[mcp] = { x: wrist.x + sx, y: wrist.y - 0.09, z: 0 };
+    if (open.has(name)) {
+      lm[pip] = { x: wrist.x + sx, y: wrist.y - 0.03, z: -0.06 };
+      lm[dip] = { x: wrist.x + sx, y: wrist.y - 0.035, z: -0.11 };
+      lm[tip] = { x: wrist.x + sx, y: wrist.y - 0.04, z: -0.16 };
+    } else {
+      lm[pip] = { x: wrist.x + sx, y: wrist.y + 0.01, z: 0.04 };
+      lm[dip] = { x: wrist.x + sx * 0.2, y: wrist.y - 0.02, z: 0.01 };
+      lm[tip] = { x: wrist.x, y: wrist.y + 0.03, z: 0.02 };
+    }
+  }
+  lm[1] = { x: wrist.x - 0.02, y: wrist.y - 0.01, z: 0 };
+  lm[2] = { x: wrist.x - 0.04, y: wrist.y, z: 0 };
+  lm[3] = { x: wrist.x - 0.03, y: wrist.y + 0.02, z: 0 };
+  lm[4] = { x: wrist.x - 0.08, y: wrist.y + 0.04, z: 0 };
+  return lm;
+}
+
+{
+  const tracker = createTracker();
+  let sample = null;
+  for (let i = 0; i < 12; i += 1) {
+    const open = i % 2 === 0 ? ["index", "ring"] : ["middle", "pinky"];
+    sample = tracker.update(towardCamera(open), i * 40);
+  }
+  const ok = sample.raw === "piano" && sample.label === "piano";
+  console.log("piano-toward-camera", "raw", sample.raw, "label", sample.label, ok ? "OK" : "FAIL");
   if (!ok) failed += 1;
 }
 

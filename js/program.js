@@ -50,16 +50,19 @@ export const ACTIONS = {
 };
 
 export const GESTURE_TO_ACTION = {
+  ok: "walking",
   fist: "boxing",
   peace: "jiangnan",
   gun: "die",
   slap: "running",
-  beckon: "getup",
+  middle: "getup",
   ily: "dance",
   piano: "swing",
 };
 
 export const GESTURE_NAMES = {
+  ok: "OK",
+  middle: "竖中指",
   fist: "握拳",
   peace: "比耶",
   gun: "手枪",
@@ -166,8 +169,8 @@ export const PROGRAMS = {
   ],
   getup: [
     {
-      file: "gesture/beckon.ts",
-      body: `palm.up()\nindex.hook()\n  .only("getup")`,
+      file: "gesture/middle.ts",
+      body: `match("middle")\n  .only("getup")`,
     },
     {
       file: "clips/getup.ts",

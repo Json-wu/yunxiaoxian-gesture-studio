@@ -60,12 +60,12 @@
       <h2>手势规则</h2>
       <p>同一时间只认一个手势。动作类手势稳住大约半秒才会切换。</p>
       <ul>
-        <li><span>默认</span><b>自信走秀</b></li>
+        <li><span>默认 / OK</span><b>自信走秀</b></li>
         <li><span>握拳</span><b>拳击</b></li>
         <li><span>比耶</span><b>江南舞</b></li>
         <li><span>食指 + 拇指手枪</span><b>倒地</b></li>
         <li><span>手掌拍下</span><b>奔跑</b></li>
-        <li><span>掌心向上勾手指</span><b>起身</b></li>
+        <li><span>竖中指</span><b>起身</b></li>
         <li><span>拇指、食指、小指伸出</span><b>跳舞</b></li>
         <li><span>掌心朝下，手指交替弹奏</span><b>摇摆舞步</b></li>
         <li><span>张开手掌，靠近或远离</span><b>放大或缩小</b></li>
@@ -77,6 +77,11 @@
       <video id="video" playsinline muted></video>
       <canvas id="overlay"></canvas>
       <span class="pip-tag">摄像头</span>
+      <button id="pip-close" class="pip-close" type="button" aria-label="关闭摄像头">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+        </svg>
+      </button>
     </div>
 
     <p id="toast" class="toast" hidden></p>

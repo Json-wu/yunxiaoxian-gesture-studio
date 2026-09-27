@@ -132,6 +132,7 @@ export function createTracker() {
   let stillSince = 0;
   let slapUntil = 0;
   let beckonUntil = 0;
+  let pianoUntil = 0;
 
   function resetMotion() {
     tips.length = 0;
@@ -146,6 +147,7 @@ export function createTracker() {
         if (history.length > 12) history.shift();
         slapUntil = 0;
         beckonUntil = 0;
+        pianoUntil = 0;
         curls.length = 0;
         resetMotion();
         return { ...EMPTY, label: vote(history), span: spanSmooth };
@@ -155,16 +157,36 @@ export function createTracker() {
       curls.push(shape.curls);
       if (curls.length > 10) curls.shift();
 
-      let motion = 0;
-      let mixed = 0;
+      let pianoHot = false;
       if (curls.length >= 6) {
-        const prev = curls[curls.length - 6];
-        const curr = shape.curls;
-        motion = curr.reduce((sum, value, i) => sum + Math.abs(value - prev[i]), 0) / 4;
-        const mean = curr.reduce((sum, value) => sum + value, 0) / 4;
-        mixed = curr.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 4;
+        const series = curls.slice(-6);
+        const ranges = series[0].map((_, finger) => {
+          let min = 1;
+          let max = 0;
+          let maxAt = 0;
+          for (let i = 0; i < series.length; i += 1) {
+            const value = series[i][finger];
+            if (value < min) min = value;
+            if (value > max) {
+              max = value;
+              maxAt = i;
+            }
+          }
+          return { min, max, maxAt, range: max - min };
+        });
+        const movers = ranges.filter((item) => item.range > 0.12);
+        let opposed = false;
+        for (let i = 0; i < ranges.length && !opposed; i += 1) {
+          if (ranges[i].range <= 0.12) continue;
+          for (let j = i + 1; j < ranges.length; j += 1) {
+            if (ranges[j].range <= 0.12) continue;
+            const otherAtPeak = series[ranges[i].maxAt][j];
+            const thisAtPeak = series[ranges[j].maxAt][i];
+            if (otherAtPeak < ranges[j].max - 0.1 && thisAtPeak < ranges[i].max - 0.1) opposed = true;
+          }
+        }
+        pianoHot = movers.length >= 2 && opposed;
       }
-      const pianoHot = shape.horizontal && motion > 0.16 && mixed > 0.04;
 
       wrists.push({ y: landmarks[0].y, t: now });
       while (wrists.length > 8) wrists.shift();
@@ -197,6 +219,7 @@ export function createTracker() {
         && shape.count <= 2
         && palmFacingUp(landmarks, shape.upright);
       if (beckonHot) beckonUntil = now + 700;
+      if (pianoHot) pianoUntil = now + 720;
 
       const gun = shape.straight.index
         && shape.thumb
@@ -212,14 +235,42 @@ export function createTracker() {
         && !shape.straight.middle
         && !shape.straight.ring
         && shape.thumb;
+      const handSize = dist(landmarks[0], landmarks[9]) || 0.12;
+      const pinch = dist(landmarks[4], landmarks[8]) < handSize * 0.72;
+      const ok = pinch
+        && !shape.straight.index
+        && shape.straight.middle
+        && shape.straight.ring
+        && shape.straight.pinky;
+      const middle = shape.straight.middle
+        && !shape.straight.index
+        && !shape.straight.ring
+        && !shape.straight.pinky;
 
       let raw = "none";
-      if (peace) {
+      if (ok) {
+        raw = "ok";
+        slapUntil = 0;
+        beckonUntil = 0;
+        pianoUntil = 0;
+      } else if (pianoHot) {
+        raw = "piano";
+        slapUntil = 0;
+      } else if (peace) {
         raw = "peace";
         slapUntil = 0;
         beckonUntil = 0;
+        pianoUntil = 0;
       } else if (ily) {
         raw = "ily";
+        slapUntil = 0;
+        beckonUntil = 0;
+        pianoUntil = 0;
+      } else if (now < pianoUntil) {
+        raw = "piano";
+        slapUntil = 0;
+      } else if (middle) {
+        raw = "middle";
         slapUntil = 0;
         beckonUntil = 0;
       } else if (beckonHot || now < beckonUntil) {
@@ -227,9 +278,6 @@ export function createTracker() {
         slapUntil = 0;
       } else if (gun) {
         raw = "gun";
-        slapUntil = 0;
-      } else if (pianoHot) {
-        raw = "piano";
         slapUntil = 0;
       } else if (slapStroke || now < slapUntil) {
         raw = "slap";

@@ -21,12 +21,12 @@ python3 -m http.server 5173
 
 | 手势 | 反应 |
 | --- | --- |
-| 默认 | 自信走秀 `walking.glb` |
+| 默认 / OK | 自信走秀 `walking.glb` |
 | 握拳 | 拳击 `boxing.glb` |
 | 比耶 | 江南舞 `jiangnan_dance.glb` |
 | 食指 + 拇指手枪 | 倒地 `die.glb` |
 | 手掌拍下 | 奔跑 `running.glb` |
-| 掌心向上勾手指 | 起身 `getup.glb` |
+| 竖中指 | 起身 `getup.glb` |
 | 拇指、食指、小指伸出 | 跳舞 `love_dance.glb` |
 | 掌心朝下，手指交替弹奏 | 摇摆舞步 `swing_dance.glb` |
 | 张开手掌，靠近或远离摄像头 | 放大或缩小 |
