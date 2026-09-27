@@ -35,7 +35,6 @@ const statusDot = document.querySelector("#status-dot");
 const cameraBtn = document.querySelector("#camera-btn");
 const hintEl = document.querySelector("#hint");
 const meterEl = document.querySelector("#meter");
-const nowTitle = document.querySelector("#now-title");
 const nowMeta = document.querySelector("#now-meta");
 const loadingEl = document.querySelector("#loading");
 const pip = document.querySelector("#pip");
@@ -88,7 +87,11 @@ let toastTimer = 0;
 
 mountCity(document.querySelector("#city"));
 layoutLinks();
-window.addEventListener("resize", layoutLinks);
+mountPipDrag();
+window.addEventListener("resize", () => {
+  layoutLinks();
+  clampPip();
+});
 
 if (location.protocol === "file:") {
   showToast("请用本地服务器打开。直接双击文件时，摄像头和模块都不可用。");
@@ -170,6 +173,50 @@ function scramble(el, text) {
   }, 28);
 }
 
+function mountPipDrag() {
+  let drag = null;
+
+  pip.addEventListener("pointerdown", (event) => {
+    if (pip.hidden || event.button > 0) return;
+    const rect = pip.getBoundingClientRect();
+    drag = {
+      id: event.pointerId,
+      dx: event.clientX - rect.left,
+      dy: event.clientY - rect.top,
+    };
+    pip.classList.add("is-dragging");
+    try { pip.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+  });
+
+  pip.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    placePip(event.clientX - drag.dx, event.clientY - drag.dy);
+  });
+
+  function finish(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    drag = null;
+    pip.classList.remove("is-dragging");
+  }
+
+  pip.addEventListener("pointerup", finish);
+  pip.addEventListener("pointercancel", finish);
+}
+
+function placePip(left, top) {
+  const maxX = Math.max(0, window.innerWidth - pip.offsetWidth);
+  const maxY = Math.max(0, window.innerHeight - pip.offsetHeight);
+  pip.style.left = `${Math.min(maxX, Math.max(0, left))}px`;
+  pip.style.top = `${Math.min(maxY, Math.max(0, top))}px`;
+  pip.style.right = "auto";
+  pip.style.bottom = "auto";
+}
+
+function clampPip() {
+  if (pip.hidden || !pip.style.left) return;
+  placePip(parseFloat(pip.style.left), parseFloat(pip.style.top));
+}
+
 function layoutLinks() {
   const hub = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.46 };
   const relays = [
@@ -178,7 +225,7 @@ function layoutLinks() {
     { x: hub.x - window.innerWidth * 0.1, y: hub.y + 130 },
     { x: hub.x + window.innerWidth * 0.11, y: hub.y + 150 },
   ];
-  const cardNodes = [...document.querySelectorAll(".card")].map((card) => {
+  const cardNodes = [...document.querySelectorAll(".card")].filter((card) => card.getClientRects().length).map((card) => {
     const rect = card.getBoundingClientRect();
     return {
       x: rect.left + rect.width * 0.5,
@@ -412,9 +459,8 @@ function cycleDevAction() {
 
 function applyActionUi(name, animate) {
   const action = ACTIONS[name];
-  statusText.textContent = live ? action.title : `${action.title}`;
-  nowTitle.textContent = action.title;
-  nowTitle.style.color = action.color;
+  statusText.textContent = action.title;
+  document.documentElement.style.setProperty("--action", action.color);
   renderProgram(name, animate);
   layoutLinks();
 }

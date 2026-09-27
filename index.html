@@ -37,14 +37,15 @@
       <div class="status">
         <span id="status-dot" class="dot"></span>
         <span id="status-text">自信走秀</span>
+        <span id="now-meta">缩放 1.00 · 正面</span>
         <span class="meter" aria-hidden="true"><i id="meter"></i></span>
       </div>
       <p id="hint"></p>
       <button id="rules-btn" class="icon-btn" type="button" aria-label="手势规则" aria-expanded="false" aria-controls="rules-panel">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" />
-          <path d="M12 7.2v6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          <circle cx="12" cy="16.7" r="1.05" fill="currentColor" />
+          <circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="1.15" />
+          <path d="M12 7.1v6.2" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" />
+          <circle cx="12" cy="16.9" r="0.95" fill="currentColor" />
         </svg>
       </button>
       <button id="camera-btn" class="icon-btn" type="button" aria-label="开启摄像头" aria-pressed="false">
@@ -76,11 +77,6 @@
       <video id="video" playsinline muted></video>
       <canvas id="overlay"></canvas>
       <span class="pip-tag">摄像头</span>
-    </div>
-
-    <div class="now">
-      <b id="now-title">自信走秀</b>
-      <span id="now-meta">缩放 1.00 · 正面</span>
     </div>
 
     <p id="toast" class="toast" hidden></p>
