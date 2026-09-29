@@ -6,22 +6,20 @@ export const BAR = BEAT * 4;
 export const HOLD_SEC = 0.22;
 export const WINDOW_EARLY = 0.42;
 export const WINDOW_LATE = 0.34;
+export const WINDOW_LATE_TIGHT = 0.2;
 export const PERFECT = 0.18;
 export const ROUND_COUNT = 30;
 export const OPENING = 8;
+export const DOUBLE_FROM = 17;
+export const DOUBLE_TO = 24;
 
 const EASY = ["ok", "fist", "peace", "gun"];
+const STEADY = ["ok", "fist", "peace", "gun", "ily", "slap", "piano"];
+const DOUBLED = ["ok", "fist", "peace", "gun", "ily"];
 
-const WEIGHTS = {
-  ok: 3,
-  fist: 3,
-  peace: 3,
-  ily: 2,
-  gun: 2,
-  slap: 1,
-  middle: 1,
-  piano: 1,
-};
+const EASY_WEIGHTS = { ok: 3, fist: 3, peace: 3, gun: 2 };
+const STEADY_WEIGHTS = { ok: 5, fist: 5, peace: 5, gun: 2, ily: 2, slap: 1, piano: 1 };
+const DOUBLE_WEIGHTS = { ok: 3, fist: 3, peace: 3, gun: 2, ily: 2 };
 
 const FLASH_SEC = 0.55;
 const FLASH_LABEL = {
@@ -45,14 +43,24 @@ function catalog() {
   return items;
 }
 
-function weighted(items, gestures) {
+function weighted(items, gestures, weights) {
   const pool = [];
   for (const gesture of gestures) {
     const item = items[gesture];
-    const weight = WEIGHTS[gesture] || 1;
+    const weight = weights[gesture] || 0;
+    if (!item || weight <= 0) continue;
     for (let i = 0; i < weight; i += 1) pool.push(item);
   }
   return pool;
+}
+
+function beatNumber(index) {
+  return index + 1;
+}
+
+function isDoubleBeat(index) {
+  const beat = beatNumber(index);
+  return beat >= DOUBLE_FROM && beat <= DOUBLE_TO;
 }
 
 function alignBar(time) {
@@ -86,8 +94,9 @@ function pointsFor(combo, perfect) {
 
 export function createRound(random = Math.random) {
   const items = catalog();
-  const easyPool = weighted(items, EASY);
-  const fullPool = weighted(items, Object.keys(items));
+  const easyPool = weighted(items, EASY, EASY_WEIGHTS);
+  const steadyPool = weighted(items, STEADY, STEADY_WEIGHTS);
+  const doublePool = weighted(items, DOUBLED, DOUBLE_WEIGHTS);
   let state = blank();
 
   function pick(pool, prev) {
@@ -102,7 +111,7 @@ export function createRound(random = Math.random) {
   function hit(prompt, perfect) {
     state.combo += 1;
     state.best = Math.max(state.best, state.combo);
-    const points = pointsFor(state.combo, perfect);
+    const points = pointsFor(state.combo, perfect) * (prompt.double ? 2 : 1);
     state.score += points;
     if (perfect) state.perfects += 1;
     else state.hits += 1;
@@ -111,6 +120,7 @@ export function createRound(random = Math.random) {
       action: prompt.action,
       gesture: prompt.gesture,
       perfect,
+      double: Boolean(prompt.double),
       points,
       combo: state.combo,
     };
@@ -141,7 +151,7 @@ export function createRound(random = Math.random) {
   function judge(prompt, musicElapsed) {
     const center = state.origin + prompt.beat;
     const open = center - WINDOW_EARLY;
-    const close = center + WINDOW_LATE;
+    const close = center + (prompt.late || WINDOW_LATE);
     const raw = state.holdRaw;
     const since = state.holdSinceMusic;
 
@@ -188,6 +198,7 @@ export function createRound(random = Math.random) {
       color: prompt?.color || "#3ee0ff",
       kicker,
       flash: flashing ? FLASH_LABEL[state.flash.kind] || "" : "",
+      double: Boolean(prompt?.double),
       beat: prompt ? state.index + 1 : 0,
       total: state.prompts.length,
       travel,
@@ -208,9 +219,16 @@ export function createRound(random = Math.random) {
       const prompts = [];
       let prev = "";
       for (let i = 0; i < ROUND_COUNT; i += 1) {
-        const item = prev === "gun" ? items.middle : pick(i < OPENING ? easyPool : fullPool, prev);
+        const doubled = isDoubleBeat(i);
+        const pool = i < OPENING ? easyPool : doubled ? doublePool : steadyPool;
+        const item = prev === "gun" ? items.middle : pick(pool, prev);
         prev = item.gesture;
-        prompts.push({ ...item, beat: (i + 1) * BAR });
+        prompts.push({
+          ...item,
+          beat: (i + 1) * BAR,
+          late: i < OPENING ? WINDOW_LATE : WINDOW_LATE_TIGHT,
+          double: doubled,
+        });
       }
       state = {
         ...blank(),

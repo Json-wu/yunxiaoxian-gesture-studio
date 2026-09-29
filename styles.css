@@ -612,6 +612,12 @@ body[data-action="getup"] .card { border-color: rgba(255, 77, 154, 0.45); }
   font-weight: 500;
   color: #fff;
 }
+#round-double {
+  color: #ffc14d;
+  letter-spacing: 0.16em;
+}
+#round-double[hidden] { display: none; }
+.round-panel.is-double { border-color: rgba(255, 193, 77, 0.45); }
 #round-end p { margin: 0; letter-spacing: 0.18em; font-size: 12px; color: rgba(190, 235, 255, 0.78); }
 #round-final {
   display: block;

@@ -58,6 +58,7 @@ const roundMeter = document.querySelector("#round-meter");
 const roundScore = document.querySelector("#round-score");
 const roundCombo = document.querySelector("#round-combo");
 const roundBeat = document.querySelector("#round-beat");
+const roundDouble = document.querySelector("#round-double");
 const roundFinal = document.querySelector("#round-final");
 const roundSummary = document.querySelector("#round-summary");
 
@@ -683,6 +684,9 @@ function applyRoundEvents(events) {
     if (event.type === "hit") {
       ringPulse = 1;
       setAction(event.action, { keepBeat: true });
+      score.mark(event.perfect ? "perfect" : "hit");
+    } else if (event.type === "miss") {
+      score.mark("miss");
     } else if (event.type === "done") {
       noteBest(event.score);
     }
@@ -702,6 +706,7 @@ function renderRound(musicElapsed) {
   roundPanel.classList.toggle("is-hit", view.flash === "命中");
   roundPanel.classList.toggle("is-miss", view.flash === "错过");
   roundPanel.classList.toggle("is-wrong", view.flash === "不对");
+  roundPanel.classList.toggle("is-double", Boolean(view.double) && !view.flash);
   if (view.phase === "live") {
     setText(roundKicker, view.kicker);
     setText(roundFlash, view.flash);
@@ -713,6 +718,7 @@ function renderRound(musicElapsed) {
     setText(roundScore, String(view.score));
     setText(roundCombo, `连击 ${view.combo}`);
     setText(roundBeat, `第 ${view.beat} / ${view.total} 拍`);
+    roundDouble.hidden = !view.double;
     setMeter(view.hold);
     setText(hintEl, view.kicker === "准备" ? `${view.name} · 等拍点` : `${view.kicker} · ${view.name}`);
     setText(nowMeta, `${view.score} · 连击 ${view.combo}`);

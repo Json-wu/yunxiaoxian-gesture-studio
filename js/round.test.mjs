@@ -1,4 +1,4 @@
-import { BAR, HOLD_SEC, OPENING, ROUND_COUNT, WINDOW_EARLY, WINDOW_LATE, createRound } from "./round.js";
+import { BAR, DOUBLE_FROM, DOUBLE_TO, HOLD_SEC, OPENING, ROUND_COUNT, WINDOW_EARLY, WINDOW_LATE, createRound } from "./round.js";
 
 let failed = 0;
 function check(name, ok, detail = "") {
@@ -129,7 +129,53 @@ function check(name, ok, detail = "") {
     return easy.has(gesture);
   });
   check("opening-skips-hard", opening, plan.slice(0, OPENING).join(","));
-  check("later-includes-hard", plan.slice(OPENING).includes("slap"), plan.slice(OPENING, OPENING + 6).join(","));
+}
+
+{
+  const round = createRound(() => 0.91);
+  round.start(0);
+  const plan = round.plan();
+  const doubled = plan.slice(DOUBLE_FROM - 1, DOUBLE_TO);
+  const spice = new Set(["slap", "piano"]);
+  check("later-includes-hard", plan.includes("slap"), plan.slice(OPENING, OPENING + 4).join(","));
+  check("double-no-hard", doubled.every((gesture) => !spice.has(gesture)), doubled.join(","));
+  check("middle-only-after-gun", plan.every((gesture, index) => gesture !== "middle" || plan[index - 1] === "gun"));
+}
+
+{
+  const round = createRound(() => 0);
+  round.start(0);
+  round.offer("ok", BAR + 0.06);
+  const wide = round.advance(BAR + 0.3);
+  const wideHit = wide.find((event) => event.type === "hit");
+  check("opening-late-hit", Boolean(wideHit) && !wideHit.perfect, JSON.stringify(wideHit));
+}
+
+{
+  const round = createRound(() => 0);
+  round.start(0);
+  for (let i = 1; i <= OPENING; i += 1) round.advance(i * BAR + WINDOW_LATE + 0.05);
+  const gesture = round.snapshot(0).gesture;
+  const center = (OPENING + 1) * BAR;
+  round.offer(gesture, center + 0.06);
+  const tight = round.advance(center + 0.3);
+  const miss = tight.find((event) => event.type === "miss");
+  check("tight-late-miss", miss?.reason === "miss" && round.snapshot(center).beat === OPENING + 2, JSON.stringify(tight));
+}
+
+{
+  const round = createRound(() => 0);
+  round.start(0);
+  for (let i = 1; i < DOUBLE_FROM; i += 1) round.advance(i * BAR + WINDOW_LATE + 0.05);
+  const before = round.snapshot((DOUBLE_FROM - 1) * BAR);
+  check("double-on", before.double && before.beat === DOUBLE_FROM, `${before.beat} ${before.double}`);
+  round.offer(before.gesture, DOUBLE_FROM * BAR - 0.2);
+  const events = round.advance(DOUBLE_FROM * BAR + 0.04);
+  const hit = events.find((event) => event.type === "hit");
+  check("double-points", Boolean(hit?.perfect) && hit.double && hit.points === 400, JSON.stringify(hit));
+  for (let beat = DOUBLE_FROM + 1; beat <= DOUBLE_TO; beat += 1) round.advance(beat * BAR + WINDOW_LATE + 0.05);
+  const after = round.snapshot(DOUBLE_TO * BAR + WINDOW_LATE + 0.05);
+  check("double-off", !after.double && after.beat === DOUBLE_TO + 1, `${after.beat} ${after.double}`);
 }
 
 {

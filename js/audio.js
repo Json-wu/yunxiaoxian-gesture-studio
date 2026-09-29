@@ -165,6 +165,26 @@ function normalize(data, peakTarget) {
   for (let i = 0; i < data.length; i += 1) data[i] *= gain;
 }
 
+export function renderJudge(kind, sampleRate) {
+  const miss = kind === "miss" || kind === "wrong";
+  const duration = miss ? 0.1 : kind === "perfect" ? 0.16 : 0.12;
+  const length = Math.floor(sampleRate * duration);
+  const data = new Float32Array(length);
+  const freq = kind === "perfect" ? 880 : 660;
+  for (let i = 0; i < length; i += 1) {
+    const t = i / sampleRate;
+    if (miss) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 36);
+      continue;
+    }
+    const ping = Math.sin(2 * Math.PI * freq * t);
+    const over = kind === "perfect" ? Math.sin(2 * Math.PI * freq * 2 * t) * 0.28 : 0;
+    data[i] = (ping + over) * Math.exp(-t * (kind === "perfect" ? 12 : 16));
+  }
+  normalize(data, miss ? 0.28 : kind === "perfect" ? 0.48 : 0.36);
+  return data;
+}
+
 export function createScore() {
   let ctx;
   let musicGain;
@@ -175,6 +195,7 @@ export function createScore() {
   let mode = "music";
   let pendingGun = false;
   let musicOrigin = 0;
+  const judgeBuffers = {};
 
   function ensure() {
     if (ctx) return;
@@ -249,6 +270,19 @@ export function createScore() {
     source.stop(now + 0.08);
   }
 
+  function playJudge(kind) {
+    const key = kind === "wrong" ? "miss" : kind;
+    if (key !== "perfect" && key !== "hit" && key !== "miss") return;
+    if (!judgeBuffers[key]) judgeBuffers[key] = bufferFrom(renderJudge(key, ctx.sampleRate));
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.value = key === "perfect" ? 0.22 : key === "hit" ? 0.16 : 0.12;
+    source.buffer = judgeBuffers[key];
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+  }
+
   function playGunshot() {
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
@@ -319,6 +353,16 @@ export function createScore() {
       return clock();
     },
     clock,
+    mark(kind) {
+      try {
+        ensure();
+      } catch (error) {
+        console.warn(error);
+        return;
+      }
+      if (!ctx || ctx.state !== "running") return;
+      playJudge(kind);
+    },
     debugState() {
       if (!analyser) return { state: ctx?.state || "idle", level: 0, mode, music: Boolean(musicSource) };
       const bins = new Uint8Array(analyser.fftSize);

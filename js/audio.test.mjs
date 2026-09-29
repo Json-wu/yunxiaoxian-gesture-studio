@@ -1,4 +1,4 @@
-import { renderGunshot, renderMusic } from "./audio.js";
+import { renderGunshot, renderJudge, renderMusic } from "./audio.js";
 
 const rate = 44100;
 const gun = renderGunshot(rate);
@@ -33,6 +33,12 @@ const musicRms = rms(music, 0, music.length);
 const bars = 4 * 4 * (60 / 124);
 check("music-length", Math.abs(music.length / rate - bars) < 0.05, `len ${(music.length / rate).toFixed(2)} expected ${bars.toFixed(2)}`);
 check("music-level", musicRms > 0.04 && musicRms < 0.35 && peak(music) <= 0.82, `rms ${musicRms.toFixed(3)} peak ${peak(music).toFixed(2)}`);
+
+const perfect = renderJudge("perfect", rate);
+const hit = renderJudge("hit", rate);
+const miss = renderJudge("miss", rate);
+check("judge-short", perfect.length / rate < 0.2 && hit.length / rate < 0.2 && miss.length / rate < 0.14, `perfect ${(perfect.length / rate).toFixed(3)}`);
+check("judge-quiet", peak(perfect) <= 0.5 && peak(hit) < peak(perfect) && peak(miss) < peak(hit), `perfect ${peak(perfect).toFixed(2)} hit ${peak(hit).toFixed(2)} miss ${peak(miss).toFixed(2)}`);
 
 if (failed) {
   console.error(`${failed} failed`);
