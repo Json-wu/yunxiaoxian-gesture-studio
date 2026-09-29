@@ -8,6 +8,8 @@ import { createScore } from "./audio.js";
 import { createRound } from "./round.js";
 
 const HOLD_MS = 480;
+const liteQuery = window.matchMedia("(pointer: coarse), (max-width: 980px)");
+const HAND_INTERVAL = 70;
 const PALM_HOLD_MS = 300;
 const MODEL_URL = "./model-files/rigged_character.glb";
 const CLIP_URLS = {
@@ -88,6 +90,7 @@ let stream = null;
 let landmarker = null;
 let landmarkerPromise = null;
 let lastVideoTime = -1;
+let lastDetect = 0;
 let lastTick = performance.now();
 let pendingAction = null;
 let pendingAt = 0;
@@ -158,6 +161,15 @@ rulesBtn.addEventListener("click", () => {
   if (open) rulesPanel.removeAttribute("hidden");
   else rulesPanel.setAttribute("hidden", "");
   rulesBtn.setAttribute("aria-expanded", open ? "true" : "false");
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!renderer) return;
+  if (document.hidden) renderer.setAnimationLoop(null);
+  else {
+    lastTick = performance.now();
+    renderer.setAnimationLoop(tick);
+  }
 });
 
 document.addEventListener("click", (event) => {
@@ -296,14 +308,19 @@ function layoutLinks() {
   linksSvg.innerHTML = `${lines.map(([a, b]) => `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`).join("")}${nodes.map((node) => `<circle cx="${node.x}" cy="${node.y}" r="3.2" />`).join("")}`;
 }
 
+function applyRendererScale() {
+  const cap = liteQuery.matches ? 1 : 2;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 async function initStage() {
   renderer = new THREE.WebGLRenderer({
     canvas: stageCanvas,
     alpha: true,
-    antialias: true,
+    antialias: !liteQuery.matches,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  applyRendererScale();
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -352,7 +369,7 @@ async function initStage() {
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    applyRendererScale();
   });
 
   const loader = new GLTFLoader();
@@ -420,7 +437,8 @@ async function initStage() {
   loadingEl.setAttribute("hidden", "");
   applyActionUi("walking", false);
   score.play("walking");
-  renderer.setAnimationLoop(tick);
+  if (document.hidden) renderer.setAnimationLoop(null);
+  else renderer.setAnimationLoop(tick);
 }
 
 function clipAction(clip, name, once) {
@@ -589,6 +607,8 @@ let trackerLast = { raw: "none", label: "none", span: 0.28, circling: false, yaw
 
 function sampleHand(now) {
   if (video.currentTime === lastVideoTime) return;
+  if (liteQuery.matches && now - lastDetect < HAND_INTERVAL) return;
+  lastDetect = now;
   lastVideoTime = video.currentTime;
   let result;
   try {
@@ -797,8 +817,14 @@ async function startLive() {
   hintEl.textContent = "正在打开摄像头…";
   try {
     landmarker = await ensureLandmarker();
+    const lite = liteQuery.matches;
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      video: {
+        facingMode: "user",
+        width: { ideal: lite ? 480 : 640, max: lite ? 640 : 1280 },
+        height: { ideal: lite ? 360 : 480, max: lite ? 480 : 720 },
+        frameRate: { ideal: lite ? 20 : 30, max: 30 },
+      },
       audio: false,
     });
     video.srcObject = stream;

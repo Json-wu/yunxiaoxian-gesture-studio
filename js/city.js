@@ -98,7 +98,8 @@ export function mountCity(canvas) {
   let frame = 0;
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const lite = window.matchMedia("(pointer: coarse), (max-width: 980px)").matches;
+    const dpr = lite ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     const width = Math.max(1, Math.floor(window.innerWidth * dpr));
     const height = Math.max(1, Math.floor(window.innerHeight * dpr));
     if (canvas.width !== width || canvas.height !== height) {

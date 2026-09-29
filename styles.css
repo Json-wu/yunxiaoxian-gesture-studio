@@ -742,6 +742,27 @@ body[data-action="getup"] .card { border-color: rgba(255, 77, 154, 0.45); }
   .rules { top: 64px; max-height: calc(100vh - 80px); overflow: auto; }
 }
 
+@media (pointer: coarse), (max-width: 980px) {
+  #city {
+    filter: blur(3px) saturate(1.15);
+    transform: none;
+    animation: none;
+  }
+  .bokeh span,
+  .pool {
+    filter: none;
+    animation: none;
+  }
+  .card,
+  .topbar,
+  .rules,
+  .round-panel,
+  .pip {
+    backdrop-filter: none;
+  }
+  .links line { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #city, .bokeh span, .links line, .dot.live,
   #camera-btn, #camera-btn::before, #camera-btn svg { animation: none; }
