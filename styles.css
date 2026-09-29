@@ -760,6 +760,10 @@ body[data-action="getup"] .card { border-color: rgba(255, 77, 154, 0.45); }
   .pip {
     backdrop-filter: none;
   }
+  .pip {
+    border: none;
+    box-shadow: none;
+  }
   .links line { animation: none; }
 }
 

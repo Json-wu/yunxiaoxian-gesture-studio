@@ -107,6 +107,7 @@ let toastTimer = 0;
 let ringMat = null;
 let ringPulse = 0;
 let roundArming = false;
+let roundWall = 0;
 const BEST_KEY = "yxx-round-best";
 let savedBest = readBest();
 let freshRecord = false;
@@ -146,12 +147,13 @@ document.querySelector("#round-again").addEventListener("click", () => {
   startRound();
 });
 document.querySelector("#round-back").addEventListener("click", () => {
+  roundWall = 0;
   round.stop();
   renderRound(0);
 });
 document.querySelector("#round-quit").addEventListener("click", () => {
   if (round.phase() !== "live") return;
-  const elapsed = score.clock()?.elapsed || 0;
+  const elapsed = roundElapsed();
   applyRoundEvents(round.end(elapsed));
   renderRound(elapsed);
 });
@@ -309,8 +311,7 @@ function layoutLinks() {
 }
 
 function applyRendererScale() {
-  const cap = liteQuery.matches ? 1 : 2;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
@@ -318,7 +319,7 @@ async function initStage() {
   renderer = new THREE.WebGLRenderer({
     canvas: stageCanvas,
     alpha: true,
-    antialias: !liteQuery.matches,
+    antialias: true,
   });
   applyRendererScale();
   renderer.setClearColor(0x000000, 0);
@@ -594,9 +595,8 @@ function tick(now) {
     const turning = Math.abs(degrees) > 1;
     nowMeta.textContent = `缩放 ${userScale.toFixed(2)} · ${turning ? `转动 ${degrees}°` : "正面"}`;
   } else {
-    const clock = score.clock();
-    const elapsed = clock ? clock.elapsed : 0;
-    if (clock && phase === "live") applyRoundEvents(round.advance(elapsed));
+    const elapsed = roundElapsed();
+    if (phase === "live") applyRoundEvents(round.advance(elapsed));
     renderRound(elapsed);
   }
 
@@ -621,8 +621,7 @@ function sampleHand(now) {
   trackerLast = tracker.update(landmarks, now);
   drawOverlay(landmarks);
   if (round.phase() === "live") {
-    const clock = score.clock();
-    if (clock) round.offer(trackerLast.raw, clock.elapsed);
+    round.offer(trackerLast.raw, roundElapsed());
     return;
   }
   consumeGesture(trackerLast, now);
@@ -767,12 +766,10 @@ async function startRound() {
   roundBtn.disabled = true;
   try {
     const clock = await score.arm();
-    if (!clock) {
-      showToast("音乐没有响起，点一下页面后再试");
-      return;
-    }
-    round.start(clock.elapsed);
-    renderRound(clock.elapsed);
+    roundWall = clock ? 0 : performance.now();
+    const elapsed = clock ? clock.elapsed : 0;
+    round.start(elapsed);
+    renderRound(elapsed);
   } finally {
     roundArming = false;
     roundBtn.disabled = false;
@@ -916,6 +913,11 @@ function cameraError(error) {
   return "摄像头或手势模型打开失败，请检查网络后重试。";
 }
 
+function roundElapsed() {
+  if (roundWall) return (performance.now() - roundWall) / 1000;
+  return score.clock()?.elapsed || 0;
+}
+
 function showToast(message) {
   toastEl.textContent = message;
   toastEl.hidden = false;
@@ -941,15 +943,13 @@ if (new URLSearchParams(location.search).has("debug")) {
     },
     startRound,
     roundOffer(raw) {
-      const clock = score.clock();
-      if (clock) round.offer(raw, clock.elapsed);
+      round.offer(raw, roundElapsed());
     },
     roundSnapshot() {
-      const clock = score.clock();
-      return round.snapshot(clock ? clock.elapsed : 0);
+      return round.snapshot(roundElapsed());
     },
     finishRound() {
-      let elapsed = score.clock()?.elapsed || 0;
+      let elapsed = roundElapsed();
       let guard = 0;
       while (round.phase() === "live" && guard < 40) {
         elapsed += 3;
