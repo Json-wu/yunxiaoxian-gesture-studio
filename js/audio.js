@@ -1,4 +1,4 @@
-const BPM = 124;
+export const BPM = 124;
 const BARS = 4;
 const STEPS = BARS * 16;
 const STEP = 60 / BPM / 4;
@@ -174,6 +174,7 @@ export function createScore() {
   let analyser;
   let mode = "music";
   let pendingGun = false;
+  let musicOrigin = 0;
 
   function ensure() {
     if (ctx) return;
@@ -206,6 +207,10 @@ export function createScore() {
       return;
     }
     startMusic();
+    if (pendingGun) {
+      pendingGun = false;
+      playGunshot();
+    }
   }
 
   function startMusic() {
@@ -225,6 +230,12 @@ export function createScore() {
     musicSource.loop = true;
     musicSource.connect(musicGain);
     musicSource.start();
+    musicOrigin = now;
+  }
+
+  function clock() {
+    if (!ctx || !musicSource || !musicOrigin) return null;
+    return { elapsed: ctx.currentTime - musicOrigin };
   }
 
   function stopMusic() {
@@ -264,9 +275,13 @@ export function createScore() {
   window.addEventListener("keydown", unlock);
 
   return {
-    play(action) {
-      if (action === "die") {
+    play(action, options = {}) {
+      const keepBeat = Boolean(options.keepBeat);
+      if (action === "die" && !keepBeat) {
         mode = "die";
+        pendingGun = true;
+      } else if (action === "die") {
+        mode = "music";
         pendingGun = true;
       } else {
         mode = "music";
@@ -280,6 +295,30 @@ export function createScore() {
       }
       apply();
     },
+    async arm() {
+      try {
+        ensure();
+      } catch (error) {
+        console.warn(error);
+        return null;
+      }
+      if (ctx.state === "suspended") {
+        try {
+          await ctx.resume();
+        } catch (error) {
+          console.warn(error);
+          return null;
+        }
+      }
+      if (ctx.state !== "running") return null;
+      if (mode === "die") {
+        mode = "music";
+        pendingGun = false;
+      }
+      apply();
+      return clock();
+    },
+    clock,
     debugState() {
       if (!analyser) return { state: ctx?.state || "idle", level: 0, mode, music: Boolean(musicSource) };
       const bins = new Uint8Array(analyser.fftSize);

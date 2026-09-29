@@ -5,6 +5,7 @@ import { mountCity } from "./city.js";
 import { createTracker } from "./gestures.js";
 import { ACTIONS, GESTURE_NAMES, GESTURE_TO_ACTION, PROGRAMS } from "./program.js";
 import { createScore } from "./audio.js";
+import { createRound } from "./round.js";
 
 const HOLD_MS = 480;
 const PALM_HOLD_MS = 300;
@@ -45,9 +46,24 @@ const linksSvg = document.querySelector("#links");
 const rulesBtn = document.querySelector("#rules-btn");
 const rulesPanel = document.querySelector("#rules-panel");
 const toastEl = document.querySelector("#toast");
+const roundBtn = document.querySelector("#round-btn");
+const roundPanel = document.querySelector("#round-panel");
+const roundPlay = document.querySelector("#round-play");
+const roundEnd = document.querySelector("#round-end");
+const roundKicker = document.querySelector("#round-kicker");
+const roundFlash = document.querySelector("#round-flash");
+const roundName = document.querySelector("#round-name");
+const roundTitle = document.querySelector("#round-title");
+const roundMeter = document.querySelector("#round-meter");
+const roundScore = document.querySelector("#round-score");
+const roundCombo = document.querySelector("#round-combo");
+const roundBeat = document.querySelector("#round-beat");
+const roundFinal = document.querySelector("#round-final");
+const roundSummary = document.querySelector("#round-summary");
 
 const tracker = createTracker();
 const score = createScore();
+const round = createRound();
 const cards = buildCards();
 
 let renderer;
@@ -84,6 +100,12 @@ let wasCircling = false;
 let circleStill = 0;
 let linkOpacity = 0;
 let toastTimer = 0;
+let ringMat = null;
+let ringPulse = 0;
+let roundArming = false;
+const BEST_KEY = "yxx-round-best";
+let savedBest = readBest();
+let freshRecord = false;
 
 mountCity(document.querySelector("#city"));
 layoutLinks();
@@ -111,6 +133,23 @@ cameraBtn.addEventListener("click", () => {
 document.querySelector("#pip-close").addEventListener("click", (event) => {
   event.stopPropagation();
   stopLive();
+});
+
+roundBtn.addEventListener("click", () => {
+  startRound();
+});
+document.querySelector("#round-again").addEventListener("click", () => {
+  startRound();
+});
+document.querySelector("#round-back").addEventListener("click", () => {
+  round.stop();
+  renderRound(0);
+});
+document.querySelector("#round-quit").addEventListener("click", () => {
+  if (round.phase() !== "live") return;
+  const elapsed = score.clock()?.elapsed || 0;
+  applyRoundEvents(round.end(elapsed));
+  renderRound(elapsed);
 });
 
 rulesBtn.addEventListener("click", () => {
@@ -306,6 +345,7 @@ async function initStage() {
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.02;
+  ringMat = ring.material;
   scene.add(ring);
 
   window.addEventListener("resize", () => {
@@ -427,13 +467,17 @@ function playClip(name, immediate) {
   currentClip = next;
 }
 
-function setAction(name) {
-  if (!ACTIONS[name] || name === activeAction) return;
+function setAction(name, options = {}) {
+  const keepBeat = Boolean(options.keepBeat);
+  if (!ACTIONS[name] || name === activeAction) {
+    if (keepBeat) score.play(name, { keepBeat: true });
+    return;
+  }
   activeAction = name;
   const clip = ACTIONS[name].clip;
   playClip(clip, false);
   applyActionUi(name, true);
-  score.play(name);
+  score.play(name, { keepBeat });
 }
 
 const DEV_ACTIONS = ["walking", "boxing", "jiangnan", "die", "running", "getup", "dance", "swing"];
@@ -457,7 +501,7 @@ if (isDevHost()) {
 }
 
 function cycleDevAction() {
-  if (!actions.walking) return;
+  if (!actions.walking || round.phase() === "live") return;
   const index = DEV_ACTIONS.indexOf(activeAction);
   setAction(DEV_ACTIONS[(index + 1) % DEV_ACTIONS.length]);
 }
@@ -466,6 +510,7 @@ function applyActionUi(name, animate) {
   const action = ACTIONS[name];
   statusText.textContent = action.title;
   document.documentElement.style.setProperty("--action", action.color);
+  if (ringMat) ringMat.color.set(action.color);
   renderProgram(name, animate);
   layoutLinks();
 }
@@ -483,7 +528,8 @@ function tick(now) {
     pinHips();
   }
 
-  const circling = live && trackerLast.circling;
+  const judging = round.phase() !== "idle";
+  const circling = live && !judging && trackerLast.circling;
   if (circling) {
     if (!wasCircling) targetYaw = currentYaw;
     targetYaw += trackerLast.yawDelta;
@@ -500,10 +546,10 @@ function tick(now) {
     targetYaw = THREE.MathUtils.damp(targetYaw, 0, 3.2, dt);
   }
   currentYaw = THREE.MathUtils.damp(currentYaw, targetYaw, 7, dt);
-  if (live && palmEngaged) {
+  if (live && !judging && palmEngaged) {
     const ratio = THREE.MathUtils.clamp((trackerLast.span - 0.16) / 0.36, 0, 1);
     targetScale = THREE.MathUtils.lerp(0.74, 1.62, ratio);
-  } else if (!live) {
+  } else if (!live || judging) {
     targetScale = THREE.MathUtils.damp(targetScale, 1, 2.4, dt);
   }
   userScale = THREE.MathUtils.damp(userScale, targetScale, 5, dt);
@@ -518,9 +564,22 @@ function tick(now) {
   linkOpacity = THREE.MathUtils.damp(linkOpacity, linkTarget, 4, dt);
   linksSvg.style.opacity = String(linkOpacity);
 
-  const degrees = Math.round(THREE.MathUtils.radToDeg(currentYaw));
-  const turning = Math.abs(degrees) > 1;
-  nowMeta.textContent = `缩放 ${userScale.toFixed(2)} · ${turning ? `转动 ${degrees}°` : "正面"}`;
+  if (ringMat) {
+    ringMat.opacity = 0.75 + ringPulse * 0.25;
+    if (ringPulse > 0) ringPulse = Math.max(0, ringPulse - dt * 1.6);
+  }
+
+  const phase = round.phase();
+  if (phase === "idle") {
+    const degrees = Math.round(THREE.MathUtils.radToDeg(currentYaw));
+    const turning = Math.abs(degrees) > 1;
+    nowMeta.textContent = `缩放 ${userScale.toFixed(2)} · ${turning ? `转动 ${degrees}°` : "正面"}`;
+  } else {
+    const clock = score.clock();
+    const elapsed = clock ? clock.elapsed : 0;
+    if (clock && phase === "live") applyRoundEvents(round.advance(elapsed));
+    renderRound(elapsed);
+  }
 
   renderer.render(scene, camera);
 }
@@ -540,6 +599,11 @@ function sampleHand(now) {
   const landmarks = result.landmarks?.[0];
   trackerLast = tracker.update(landmarks, now);
   drawOverlay(landmarks);
+  if (round.phase() === "live") {
+    const clock = score.clock();
+    if (clock) round.offer(trackerLast.raw, clock.elapsed);
+    return;
+  }
   consumeGesture(trackerLast, now);
 }
 
@@ -583,6 +647,110 @@ function consumeGesture(sample, now) {
       setMeter(0);
       hintEl.textContent = "把手放进画面，手势稳住约半秒";
     }
+  }
+}
+
+function setText(el, value) {
+  if (el.textContent !== value) el.textContent = value;
+}
+
+function readBest() {
+  try {
+    const value = Number(localStorage.getItem(BEST_KEY));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeBest(score) {
+  try {
+    localStorage.setItem(BEST_KEY, String(score));
+  } catch {
+    /* ignore private mode */
+  }
+}
+
+function noteBest(score) {
+  freshRecord = score > savedBest;
+  if (!freshRecord) return;
+  savedBest = score;
+  writeBest(score);
+}
+
+function applyRoundEvents(events) {
+  for (const event of events) {
+    if (event.type === "hit") {
+      ringPulse = 1;
+      setAction(event.action, { keepBeat: true });
+    } else if (event.type === "done") {
+      noteBest(event.score);
+    }
+  }
+}
+
+function syncRoundButton() {
+  roundBtn.hidden = !(live && round.phase() === "idle");
+}
+
+function renderRound(musicElapsed) {
+  const view = round.snapshot(musicElapsed);
+  roundPanel.hidden = view.phase === "idle";
+  roundPlay.hidden = view.phase !== "live";
+  roundEnd.hidden = view.phase !== "done";
+  roundPanel.classList.toggle("is-perfect", view.flash === "完美");
+  roundPanel.classList.toggle("is-hit", view.flash === "命中");
+  roundPanel.classList.toggle("is-miss", view.flash === "错过");
+  roundPanel.classList.toggle("is-wrong", view.flash === "不对");
+  if (view.phase === "live") {
+    setText(roundKicker, view.kicker);
+    setText(roundFlash, view.flash);
+    roundFlash.dataset.kind = view.flash;
+    setText(roundName, view.name);
+    setText(roundTitle, view.title);
+    roundName.style.color = view.color;
+    roundMeter.style.transform = `scaleX(${view.travel})`;
+    setText(roundScore, String(view.score));
+    setText(roundCombo, `连击 ${view.combo}`);
+    setText(roundBeat, `第 ${view.beat} / ${view.total} 拍`);
+    setMeter(view.hold);
+    setText(hintEl, view.kicker === "准备" ? `${view.name} · 等拍点` : `${view.kicker} · ${view.name}`);
+    setText(nowMeta, `${view.score} · 连击 ${view.combo}`);
+  } else if (view.phase === "done") {
+    setText(roundFinal, String(view.score));
+    const record = freshRecord ? `新纪录 ${savedBest}` : `最高分 ${savedBest}`;
+    setText(roundSummary, `完美 ${view.perfects} · 命中 ${view.hits} · 错过 ${view.misses}\n最高连击 ${view.best}\n${record}`);
+    setText(hintEl, "本局结束");
+    setText(nowMeta, `${view.score} · 最高连击 ${view.best}`);
+    setMeter(0);
+  }
+  syncRoundButton();
+}
+
+async function startRound() {
+  if (roundArming) return;
+  if (!live) {
+    showToast("先开启摄像头，再开始跟拍");
+    return;
+  }
+  if (!actions.walking) {
+    showToast("云小闲还在装载");
+    return;
+  }
+  roundArming = true;
+  roundBtn.disabled = true;
+  try {
+    const clock = await score.arm();
+    if (!clock) {
+      showToast("音乐没有响起，点一下页面后再试");
+      return;
+    }
+    round.start(clock.elapsed);
+    renderRound(clock.elapsed);
+  } finally {
+    roundArming = false;
+    roundBtn.disabled = false;
+    syncRoundButton();
   }
 }
 
@@ -637,6 +805,7 @@ async function startLive() {
     cameraBtn.classList.add("is-on");
     statusText.textContent = ACTIONS[activeAction].title;
     hintEl.textContent = "把手放进画面，手势稳住约半秒";
+    syncRoundButton();
     layoutLinks();
   } catch (error) {
     console.error(error);
@@ -651,6 +820,8 @@ async function startLive() {
 
 function stopLive() {
   live = false;
+  round.stop();
+  renderRound(0);
   palmEngaged = false;
   palmSince = 0;
   pendingAction = null;
@@ -734,6 +905,31 @@ if (new URLSearchParams(location.search).has("debug")) {
         statusDot.classList.add("live");
         pip.hidden = false;
       }
+      syncRoundButton();
+    },
+    startRound,
+    roundOffer(raw) {
+      const clock = score.clock();
+      if (clock) round.offer(raw, clock.elapsed);
+    },
+    roundSnapshot() {
+      const clock = score.clock();
+      return round.snapshot(clock ? clock.elapsed : 0);
+    },
+    finishRound() {
+      let elapsed = score.clock()?.elapsed || 0;
+      let guard = 0;
+      while (round.phase() === "live" && guard < 40) {
+        elapsed += 3;
+        for (const event of round.advance(elapsed)) {
+          if (event.type !== "hit") continue;
+          ringPulse = 1;
+          setAction(event.action, { keepBeat: true });
+        }
+        guard += 1;
+      }
+      renderRound(elapsed);
+      return round.snapshot(elapsed);
     },
     nudgeYaw(delta) {
       if (!wasCircling) targetYaw = currentYaw;

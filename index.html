@@ -54,6 +54,7 @@
         <span class="meter" aria-hidden="true"><i id="meter"></i></span>
       </div>
       <p id="hint"></p>
+      <button id="round-btn" class="text-btn" type="button" hidden>跟拍</button>
       <button id="rules-btn" class="icon-btn" type="button" aria-label="手势规则" aria-expanded="false" aria-controls="rules-panel">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="1.15" />
@@ -71,7 +72,7 @@
 
     <section id="rules-panel" class="rules" hidden>
       <h2>手势规则</h2>
-      <p>同一时间只认一个手势。动作类手势稳住大约半秒才会切换。</p>
+      <p>同一时间只认一个手势。动作类手势稳住大约半秒才会切换。跟拍局里对准拍点，稳住大约 0.2 秒。</p>
       <ul>
         <li><span>默认 / OK</span><b>自信走秀</b></li>
         <li><span>握拳</span><b>拳击</b></li>
@@ -96,6 +97,26 @@
         </svg>
       </button>
     </div>
+
+    <section id="round-panel" class="round-panel" hidden>
+      <div id="round-play">
+        <p class="round-head"><span id="round-kicker">准备</span><span id="round-flash"></span></p>
+        <strong id="round-name"></strong>
+        <em id="round-title"></em>
+        <div class="round-meter" aria-hidden="true"><i id="round-meter"></i></div>
+        <p class="round-stats"><b id="round-score">0</b><span id="round-combo">连击 0</span><span id="round-beat">第 1 / 30 拍</span></p>
+        <button id="round-quit" class="text-btn" type="button">结束</button>
+      </div>
+      <div id="round-end" hidden>
+        <p>本局结束</p>
+        <strong id="round-final">0</strong>
+        <p id="round-summary"></p>
+        <div class="round-actions">
+          <button id="round-again" class="text-btn" type="button">再来一局</button>
+          <button id="round-back" class="text-btn" type="button">返回</button>
+        </div>
+      </div>
+    </section>
 
     <p id="toast" class="toast" hidden></p>
     <script type="module" src="./js/main.js"></script>

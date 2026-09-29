@@ -80,7 +80,7 @@ export const PROGRAMS = {
   walking: [
     {
       file: "stage/boot.ts",
-      body: `defaultClip = "walking"\nload("walking.glb")\n// 自信走秀`,
+      body: `defaultClip = "walking"\nload("walking.glb")\n`,
     },
     {
       file: "clips/walking.ts",
